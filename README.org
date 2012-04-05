@@ -1,0 +1,7 @@
+#-*- mode:org; coding:utf-8; mode:visual-line; -*-
+#+TITLE: DCPU-16 Emulator, Assembler, Tools
+
+An emulator and other tools for the [[http://0x10c.com/doc/dcpu-16.txt][DCPU-16]]. The CPU was designed by Notch/Mojang and is part of the upcomming game [[http://0x10c.com/][0x10c]]. This is my own implementation and does not contain any material from Mojang!
+
+
+
