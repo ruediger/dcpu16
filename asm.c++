@@ -1,6 +1,6 @@
-#include <unordered_map>
 #include <stdexcept>
 #include <iostream>
+#include <fstream>
 #include <iomanip>
 #include <cstdint>
 #include <string>
@@ -23,7 +23,7 @@ typedef std::uint16_t word;
 std::vector<std::string> code;
 std::vector<word> binary;
 
-void grammar() {
+void assemble() {
   typedef std::string::const_iterator iterator;
   typedef qi::rule<iterator, word(), ascii::space_type> rule;
 
@@ -151,8 +151,10 @@ void grammar() {
       std::cerr << "ERROR! " << std::string(i, l.end()) << std::endl;
     }
     else {
+      binary.push_back(instr);
       std::cerr << "OK: " << std::hex << std::setfill('0') << std::setw(4) << instr << "\n";
       if(next_word) {
+        binary.push_back(next_word);
         std::cerr << "NW: " << std::hex << std::setfill('0') << std::setw(4) << word(next_word) << "\n";
         next_word = 0;
       }
@@ -178,8 +180,13 @@ int main() try {
     }
   }
 
-  binary.resize(0x10000);
-  grammar();
+  assemble();
+  std::ofstream out("dcpu.out");
+  if(not out) {
+    std::cerr << "ERROR: Couldn't open 'dcpu.out'\n";
+    return 1;
+  }
+  out.write(reinterpret_cast<char const*>(&binary[0]), binary.size()*sizeof(binary[0]));
 }
  catch(std::exception &e) {
    std::cerr << "ERROR: " << e.what() << std::endl;
