@@ -12,6 +12,7 @@
 #include <boost/spirit/include/phoenix_stl.hpp>
 #include <boost/spirit/include/phoenix_object.hpp>
 #include <boost/spirit/include/qi.hpp>
+namespace px = boost::phoenix;
 namespace qi = boost::spirit::qi;
 namespace ascii = boost::spirit::ascii;
 
@@ -34,29 +35,34 @@ void grammar() {
   auto ops = qi::no_case[ ops_sym ];
   qi::symbols<char, word> reg_sym;
   reg_sym.add
-    ("a", 0)
-    ("b", 1)
-    ("c", 2)
-    ("x", 3)
-    ("y", 4)
-    ("z", 5)
-    ("i", 6)
-    ("j", 7);
+    ("a", 0u)
+    ("b", 1u)
+    ("c", 2u)
+    ("x", 3u)
+    ("y", 4u)
+    ("z", 5u)
+    ("i", 6u)
+    ("j", 7u);
   auto reg = qi::no_case[ reg_sym ];
   qi::symbols<char, word> specreg_sym;
   specreg_sym.add
-    ("sp", 0x1b)
-    ("pc", 0x1c)
-    ("o", 0x1d);
+    ("sp", 0x1bu)
+    ("pc", 0x1cu)
+    ("o", 0x1du);
   auto specreg = qi::no_case[ specreg_sym ];
   qi::symbols<char, word> stack_sym;
   stack_sym.add
-    ("pop", 0x18)
-    ("peek", 0x19)
-    ("push", 0x1a);
+    ("pop", 0x18u)
+    ("peek", 0x19u)
+    ("push", 0x1au);
   auto stack = qi::no_case[ stack_sym ];
   auto var = reg | lit | specreg | stack | ( '[' > (reg | lit | (lit >> '+' >> reg) ) > ']' );
-  auto op = ops > var > ',' > var;
+
+  auto op =
+    ops     [qi::_val = qi::_1]
+    > var
+    > ','
+    > var;
   
   auto label = name >> ':';
   
@@ -85,7 +91,7 @@ void grammar() {
 
 //op | jsr | label | prepro | special | comment;
 
-  qi::rule<std::string::const_iterator, ascii::space_type> expr = op | jsr | label | comment;
+  qi::rule<std::string::const_iterator, word(), ascii::space_type> expr = op | jsr | label | comment;
 
   unsigned lineno = 0;
 
@@ -103,23 +109,24 @@ void grammar() {
     (
      expr,
      std::cout
-     << boost::phoenix::val("Error! Expecting ")
+     << px::val("Error! Expecting ")
      << boost::spirit::_4                               // what failed?
-     << boost::phoenix::val(" here: \"")
-     << boost::phoenix::construct<std::string>(boost::spirit::_3, boost::spirit::_2)   // iterators to error-pos, end
-     << boost::phoenix::val("\"")
+     << px::val(" here: \"")
+     << px::construct<std::string>(boost::spirit::_3, boost::spirit::_2)   // iterators to error-pos, end
+     << px::val("\"")
      << std::endl
      );
 
   for(auto const &l : code) {
     ++lineno;
     auto i = l.begin();
-    bool const r = qi::phrase_parse(i, l.end(), expr, ascii::space);
+    word instr = 0;
+    bool const r = qi::phrase_parse(i, l.end(), expr, ascii::space, instr);
     if(not r) {
       std::cerr << "ERROR! " << std::string(i, l.end()) << std::endl;
     }
     else {
-      std::cerr << "OK\n";
+      std::cerr << "OK: " << std::hex << std::setfill('0') << std::setw(4) << instr << "\n";
     }
   }
 }
