@@ -22,11 +22,15 @@ std::vector<std::string> code;
 std::vector<word> binary;
 
 void grammar() {
+  typedef std::string::const_iterator iterator;
+  typedef qi::rule<iterator, word(), ascii::space_type> rule;
+
   auto name = qi::alpha >> *qi::alnum;
-  auto hexlit = qi::lit('0') >> (qi::lit('x') | 'X') > qi::hex;
-  auto binlit = qi::lit('0') >> (qi::lit('b') | 'B') > qi::bin;
-  auto octlit = qi::lit('0') > qi::oct;
-  auto lit = binlit | hexlit | octlit | qi::ushort_;
+
+  rule hexlit = qi::lit('0') >> (qi::lit('x') | 'X') > qi::hex [qi::_val = qi::_1];
+  rule binlit = qi::lit('0') >> (qi::lit('b') | 'B') > qi::bin [qi::_val = qi::_1];
+  rule octlit = qi::lit('0') > qi::oct                         [qi::_val = qi::_1];
+  rule lit = (binlit | hexlit | octlit | qi::ushort_)          [qi::_val = qi::_1];
 
   qi::symbols<char, word> ops_sym;
   ops_sym.add
@@ -56,16 +60,24 @@ void grammar() {
     ("peek", 0x19u)
     ("push", 0x1au);
   auto stack = qi::no_case[ stack_sym ];
-  auto var = reg | lit | specreg | stack | ( '[' > (reg | lit | (lit >> '+' >> reg) ) > ']' );
+  rule var =
+      reg       [qi::_val = qi::_1]
+    | lit       [qi::_val = qi::_1 + px::val(0x20u)] // TODO next word
+    | specreg   [qi::_val = qi::_1]
+    | stack     [qi::_val = qi::_1]
+    | ( '[' > (reg [qi::_val = qi::_1 + px::val(0x08)]
+             | lit [qi::_val = px::val(0x1e)]    // TODO next word
+             | (lit >> '+' >> reg[qi::_val = qi::_1]) [qi::_val += px::val(0x10)]           // TODO next word
+      ) > ']' );
 
   auto op =
     ops     [qi::_val = qi::_1]
-    > var
+    > var   [qi::_val |= qi::_1 << px::val(4u) ]
     > ','
-    > var;
-  
+    > var   [qi::_val |= qi::_1 << px::val(10u) ];
+
   auto label = name >> ':';
-  
+
   auto jsr = qi::lit("jsr") > qi::ushort_;
 
 #if 0
@@ -91,7 +103,7 @@ void grammar() {
 
 //op | jsr | label | prepro | special | comment;
 
-  qi::rule<std::string::const_iterator, word(), ascii::space_type> expr = op | jsr | label | comment;
+  rule expr = op | jsr | label | comment;
 
   unsigned lineno = 0;
 
