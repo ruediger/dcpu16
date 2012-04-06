@@ -6,6 +6,8 @@
 #include <string>
 #include <vector>
 
+#include <boost/spirit/home/phoenix/statement/if.hpp>
+#include <boost/spirit/home/phoenix/statement/sequence.hpp>
 #include <boost/spirit/include/phoenix_core.hpp>
 #include <boost/spirit/include/phoenix_operator.hpp>
 #include <boost/spirit/include/phoenix_fusion.hpp>
@@ -60,14 +62,25 @@ void grammar() {
     ("peek", 0x19u)
     ("push", 0x1au);
   auto stack = qi::no_case[ stack_sym ];
+  std::uint32_t next_word = 0;
   rule var =
       reg       [qi::_val = qi::_1]
-    | lit       [qi::_val = qi::_1 + px::val(0x20u)] // TODO next word
+    | lit       [
+                 px::if_(qi::_1 <= px::val(0x1Fu))
+                 [
+                  qi::_val = qi::_1 + px::val(0x20u)
+                 ]
+                 .else_
+                 [
+                  qi::_val = px::val(0x1F),
+                  px::ref(next_word) = px::val(~std::uint32_t(0)) & qi::_1
+                 ]
+                ]
     | specreg   [qi::_val = qi::_1]
     | stack     [qi::_val = qi::_1]
     | ( '[' > (reg [qi::_val = qi::_1 + px::val(0x08)]
-             | lit [qi::_val = px::val(0x1e)]    // TODO next word
-             | (lit >> '+' >> reg[qi::_val = qi::_1]) [qi::_val += px::val(0x10)]           // TODO next word
+            | (lit [px::ref(next_word) = px::val(~std::uint32_t(0)) & qi::_1] >> '+' >> reg[qi::_val = qi::_1 + px::val(0x10)])
+            | (lit [px::ref(next_word) = px::val(~std::uint32_t(0)) & qi::_1]) [qi::_val = px::val(0x1e)]
       ) > ']' );
 
   auto op =
@@ -139,6 +152,10 @@ void grammar() {
     }
     else {
       std::cerr << "OK: " << std::hex << std::setfill('0') << std::setw(4) << instr << "\n";
+      if(next_word) {
+        std::cerr << "NW: " << std::hex << std::setfill('0') << std::setw(4) << word(next_word) << "\n";
+        next_word = 0;
+      }
     }
   }
 }
