@@ -1,3 +1,4 @@
+#include <unordered_map>
 #include <stdexcept>
 #include <iostream>
 #include <fstream>
@@ -33,6 +34,9 @@ void assemble() {
   rule binlit = qi::lit('0') >> (qi::lit('b') | 'B') > qi::bin [qi::_val = qi::_1];
   rule octlit = qi::lit('0') > qi::oct                         [qi::_val = qi::_1];
   rule lit = (binlit | hexlit | octlit | qi::ushort_)          [qi::_val = qi::_1];
+
+  std::unordered_map<std::string,word> labels;
+  word pos = 0;
 
   qi::symbols<char, word> ops_sym;
   ops_sym.add
@@ -151,10 +155,10 @@ void assemble() {
       std::cerr << "ERROR! " << std::string(i, l.end()) << std::endl;
     }
     else {
-      binary.push_back(instr);
+      binary[pos++] = instr;
       std::cerr << "OK: " << std::hex << std::setfill('0') << std::setw(4) << instr << "\n";
       if(next_word) {
-        binary.push_back(next_word);
+        binary[pos++] = next_word;
         std::cerr << "NW: " << std::hex << std::setfill('0') << std::setw(4) << word(next_word) << "\n";
         next_word = 0;
       }
@@ -179,7 +183,7 @@ int main() try {
       code.back().back() = ' ';
     }
   }
-
+  binary.resize(0x10000);
   assemble();
   std::ofstream out("dcpu.out");
   if(not out) {
