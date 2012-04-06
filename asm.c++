@@ -91,8 +91,23 @@ void grammar() {
 
 int main() try {
   std::string line;
+  bool attach_last = false; // set to true if line should be attacked to previous
   while(std::getline(std::cin, line)) {
-    code.push_back(line);
+    if(attach_last) {
+      assert(not code.empty());
+      code.back() += line;
+      attach_last = false;
+    }
+    else {
+      code.push_back(line);
+    }
+    if(not line.empty() and line.back() == '\\') {
+      attach_last = true;
+      code.back().back() = ' ';
+    }
+  }
+  for(auto const &l : code) {
+    std::cout << l << std::endl;
   }
   grammar();
 }
