@@ -18,10 +18,14 @@ namespace ascii = boost::spirit::ascii;
 typedef std::uint16_t word;
 
 std::vector<std::string> code;
+std::vector<word> binary;
 
 void grammar() {
   auto name = qi::alpha >> *qi::alnum;
-  auto lit = qi::ushort_;
+  auto hexlit = qi::lit('0') >> (qi::lit('x') | 'X') > qi::hex;
+  auto binlit = qi::lit('0') >> (qi::lit('b') | 'B') > qi::bin;
+  auto octlit = qi::lit('0') > qi::oct;
+  auto lit = binlit | hexlit | octlit | qi::ushort_;
 
   qi::symbols<char, word> ops_sym;
   ops_sym.add
@@ -51,7 +55,7 @@ void grammar() {
     ("peek", 0x19)
     ("push", 0x1a);
   auto stack = qi::no_case[ stack_sym ];
-  auto var = reg | lit | specreg | stack | ( '[' >> (reg | lit | (lit >> '+' >> reg) ) >> ']' );
+  auto var = reg | lit | specreg | stack | ( '[' > (reg | lit | (lit >> '+' >> reg) ) > ']' );
   auto op = ops > var > ',' > var;
   
   auto label = name >> ':';
@@ -137,9 +141,8 @@ int main() try {
       code.back().back() = ' ';
     }
   }
-  for(auto const &l : code) {
-    std::cout << l << std::endl;
-  }
+
+  binary.resize(0x10000);
   grammar();
 }
  catch(std::exception &e) {
